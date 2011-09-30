@@ -50,24 +50,18 @@ class TicketRelationsSystem(Component):
 
         links = TicketLinks(self.env, tkt, db)
 
+        old_relations = {}
         if "blocking" in old_values:
-            links._old_blocking = set(int(n) for n in self.NUMBERS_RE.findall(old_values['blocking'] or ''))
+            old_relations['blocking'] = set(int(n) for n in self.NUMBERS_RE.findall(old_values['blocking']))
         if "blockedby" in old_values:
-            links._old_blocked_by = set(int(n) for n in self.NUMBERS_RE.findall(old_values['blockedby'] or ''))
+            old_relations['blockedby'] = set(int(n) for n in self.NUMBERS_RE.findall(old_values['blockedby']))
 
-        links.save(author, comment, tkt.time_changed, db)
+        links.save(old_relations, author, comment, tkt.time_changed, db)
 
         db.commit()
 
     def ticket_deleted(self, tkt):
-        db = self.env.get_db_cnx()
-        
-        links = TicketLinks(self.env, tkt, db)
-        links.blocking = set()
-        links.blocked_by = set()
-        links.save('trac', 'Ticket #%s deleted'%tkt.id, when=None, db=db)
-        
-        db.commit()
+        pass
         
     # ITicketManipulator methods
     def prepare_ticket(self, req, ticket, fields, actions):

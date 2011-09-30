@@ -20,9 +20,6 @@ class TicketLinks(object):
         db = db or self.env.get_db_cnx()
         cursor = db.cursor()
 
-        self._old_blocking = set([])
-        self._old_blocked_by = set([])
-
         cursor.execute("SELECT value FROM ticket_custom WHERE ticket=%s AND name='blocking' AND value != '' ORDER BY value", (self.tkt.id,))
         ids = self.NUMBERS_RE.findall((cursor.fetchone() or ('',))[0])
         self.blocking = set([int(num) for num, in ids])
@@ -31,8 +28,8 @@ class TicketLinks(object):
         ids = self.NUMBERS_RE.findall((cursor.fetchone() or ('',))[0])
         self.blocked_by = set([int(num) for num, in ids])
 
-    def save(self, author, comment='', when=None, db=None):
-        """Save new links."""
+    def save(self, old_relations, author, comment='', when=None, db=None):
+        """Save new relations"""
 
         if when is None:
             when = datetime.now(utc)
@@ -42,50 +39,50 @@ class TicketLinks(object):
         if db is None:
             db = self.env.get_db_cnx()
             handle_commit = True
-        cursor = db.cursor()
-        
-        new_blocking = set(int(n) for n in self.blocking)
-        new_blocked_by = set(int(n) for n in self.blocked_by)
-        
-        to_check = [
-            # new, old, field
-            (new_blocking, self._old_blocking, 'blockedby'),
-            (new_blocked_by, self._old_blocked_by, 'blocking'),
-        ]
 
-        for new_ids, old_ids, field in to_check:
-            for n in new_ids | old_ids:
-                update_field = None
-                if n in new_ids and n not in old_ids:
-                    # New ticket added
-                    update_field = lambda lst: lst.append(str(self.tkt.id))
-                elif n not in new_ids and n in old_ids:
-                    # Old ticket removed
-                    update_field = lambda lst: lst.remove(str(self.tkt.id))
-                
-                if update_field is not None:
-                    cursor.execute('SELECT value FROM ticket_custom WHERE ticket=%s AND name=%s', (n, str(field)))
-                    old_value = (cursor.fetchone() or ('',))[0]
-                    new_value = [x.strip() for x in old_value.split(',') if x.strip()]
-                    update_field(new_value)
-                    new_value = ', '.join(sorted(new_value, key=lambda x: int(x)))
-
-                    cursor.execute('INSERT INTO ticket_change (ticket, time, author, field, oldvalue, newvalue) VALUES (%s, %s, %s, %s, %s, %s)', 
-                                   (n, when_ts, author, field, old_value, new_value))
-
-                    if comment:
-                        cursor.execute('INSERT INTO ticket_change (ticket, time, author, field, oldvalue, newvalue) VALUES (%s, %s, %s, %s, %s, %s)', 
-                                       (n, when_ts, author, 'comment', '', '(In #%s) %s'%(self.tkt.id, comment)))
-
-                    cursor.execute('UPDATE ticket_custom SET value=%s WHERE ticket=%s AND name=%s', (new_value, n, field))
-                    if not cursor.rowcount:
-                        cursor.execute('INSERT INTO ticket_custom (ticket, name, value) VALUES (%s, %s, %s)', (n, field, new_value))
-
-                    # refresh the changetime to prevent concurrent edits
-                    cursor.execute('UPDATE ticket SET changetime=%s WHERE id=%s', (when_ts,n))
+        for k, v in old_relations.iteritems():
+            self.update_relations(k, v, author, comment, when_ts, db)
 
         if handle_commit:
             db.commit()
+
+    def update_relations(self, changed_field, values, author, comment, when_ts, db):
+
+        if changed_field == 'blocking':
+            new_ids = self.blocking
+            field = 'blockedby'
+        else:
+            new_ids = self.blocked_by
+            field = 'blocking'
+
+        for n in new_ids | values:
+            update_field = None
+            if n in new_ids and n not in values:
+                # adding new relation
+                update_field = lambda lst: lst.append(str(self.tkt.id))
+            elif n not in new_ids and n in values:
+                # removing relation
+                update_field = lambda lst: lst.remove(str(self.tkt.id))
+
+            if update_field is not None:
+                cursor = db.cursor()
+                cursor.execute('SELECT value FROM ticket_custom WHERE ticket=%s AND name=%s', (n, str(field)))
+                old_value = (cursor.fetchone() or ('',))[0]
+                new_value = [x.strip() for x in old_value.split(',') if x.strip()]
+                update_field(new_value)
+                new_value = ', '.join(sorted(new_value, key=lambda x: int(x)))
+                cursor.execute('UPDATE ticket_custom SET value=%s WHERE ticket=%s AND name=%s', (new_value, n, field))
+
+                cursor.execute('INSERT INTO ticket_change (ticket, time, author, field, oldvalue, newvalue) VALUES (%s, %s, %s, %s, %s, %s)',
+                               (n, when_ts, author, field, old_value, new_value))
+
+                if comment:
+                    cursor.execute('INSERT INTO ticket_change (ticket, time, author, field, oldvalue, newvalue) VALUES (%s, %s, %s, %s, %s, %s)',
+                               (n, when_ts, author, 'comment', '', '(In #%s) %s'%(self.tkt.id, comment)))
+
+                # refresh the changetime to prevent concurrent edits
+                cursor.execute('UPDATE ticket SET changetime=%s WHERE id=%s', (when_ts, n))
+
 
     def __nonzero__(self):
         return bool(self.blocking) or bool(self.blocked_by)
