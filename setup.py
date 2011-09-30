@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+# -*- coding: utf8 -*-
+import os
 from setuptools import find_packages, setup
 
 setup(
