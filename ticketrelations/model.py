@@ -21,12 +21,10 @@ class TicketLinks(object):
         cursor = db.cursor()
 
         cursor.execute("SELECT value FROM ticket_custom WHERE ticket=%s AND name='blocking' AND value != '' ORDER BY value", (self.tkt.id,))
-        ids = self.NUMBERS_RE.findall((cursor.fetchone() or ('',))[0])
-        self.blocking = set([int(num) for num, in ids])
+        self.blocking = set(int(n) for n in self.NUMBERS_RE.findall((cursor.fetchone() or ('',))[0]))
 
         cursor.execute("SELECT value FROM ticket_custom WHERE ticket=%s AND name='blockedby' AND value != '' ORDER BY value", (self.tkt.id,))
-        ids = self.NUMBERS_RE.findall((cursor.fetchone() or ('',))[0])
-        self.blocked_by = set([int(num) for num, in ids])
+        self.blocked_by = set(int(n) for n in self.NUMBERS_RE.findall((cursor.fetchone() or ('',))[0]))
 
     def save(self, old_relations, author, comment='', when=None, db=None):
         """Save new relations"""
