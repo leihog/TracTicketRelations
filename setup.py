@@ -13,7 +13,7 @@ setup(
     author_email = 'leihog@gmail.com',
     description = 'Provides dependency relations between tickets. (blocked by/blocking)',
     long_description = open(os.path.join(os.path.dirname(__file__), 'README')).read(),
-    url = 'http://github.com/leihog/trac-ticketrelations',
+    url = 'https://github.com/leihog/TracTicketRelations',
     license = 'BSD',
 
     install_requires = ['Trac>=0.12'],
