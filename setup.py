@@ -4,8 +4,10 @@ import os
 from setuptools import find_packages, setup
 
 setup(
-    name = 'TracTicketRelationsPlugin', version='1.0',
-    packages = find_packages(exclude=['*.tests*']),
+    name = 'TracTicketRelationsPlugin',
+    version='1.0.2',
+    packages = ['ticketrelations'],
+    package_data = { 'ticketrelations': ['htdocs/*.js'] },
 
     author = 'Leif Högberg',
     author_email = 'leihog@gmail.com',

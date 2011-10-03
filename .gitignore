@@ -1,2 +1,4 @@
 TracTicketRelationsPlugin.egg-info/*
+build/*
+dist/*
 *.pyc
