@@ -5,7 +5,7 @@ from setuptools import find_packages, setup
 
 setup(
     name = 'TracTicketRelationsPlugin',
-    version='1.0.2',
+    version='1.0.3',
     packages = ['ticketrelations'],
     package_data = { 'ticketrelations': ['htdocs/*.js'] },
 
