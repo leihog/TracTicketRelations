@@ -7,6 +7,10 @@ from trac.ticket.model import Ticket
 from trac.util.compat import set, sorted
 from trac.util.datefmt import utc, to_utimestamp
 
+def extract_ticket_ids(id_str):
+    numbers_re = re.compile(r'\d+', re.U)
+    return set(int(n) for n in numbers_re.findall(id_str))
+
 class TicketLinks(object):
     
     NUMBERS_RE = re.compile(r'\d+', re.U)
@@ -21,10 +25,10 @@ class TicketLinks(object):
         cursor = db.cursor()
 
         cursor.execute("SELECT value FROM ticket_custom WHERE ticket=%s AND name='blocking' AND value != '' ORDER BY value", (self.tkt.id,))
-        self.blocking = set(int(n) for n in self.NUMBERS_RE.findall((cursor.fetchone() or ('',))[0]))
+        self.blocking = extract_ticket_ids((cursor.fetchone() or ('',))[0])
 
         cursor.execute("SELECT value FROM ticket_custom WHERE ticket=%s AND name='blockedby' AND value != '' ORDER BY value", (self.tkt.id,))
-        self.blocked_by = set(int(n) for n in self.NUMBERS_RE.findall((cursor.fetchone() or ('',))[0]))
+        self.blocked_by = extract_ticket_ids((cursor.fetchone() or ('',))[0])
 
     def save(self, old_relations, author, comment='', when=None, db=None):
         """Save new relations"""
@@ -68,18 +72,19 @@ class TicketLinks(object):
                 old_value = (cursor.fetchone() or ('',))[0]
                 new_value = [x.strip() for x in old_value.split(',') if x.strip()]
                 update_field(new_value)
-                new_value = ', '.join(sorted(new_value, key=lambda x: int(x)))
-                cursor.execute('UPDATE ticket_custom SET value=%s WHERE ticket=%s AND name=%s', (new_value, n, field))
+                new_value = ', '.join(set(sorted(new_value, key=lambda x: int(x))))
 
-                cursor.execute('INSERT INTO ticket_change (ticket, time, author, field, oldvalue, newvalue) VALUES (%s, %s, %s, %s, %s, %s)',
+                if old_value != new_value:
+                    cursor.execute('UPDATE ticket_custom SET value=%s WHERE ticket=%s AND name=%s', (new_value, n, field))
+                    cursor.execute('INSERT INTO ticket_change (ticket, time, author, field, oldvalue, newvalue) VALUES (%s, %s, %s, %s, %s, %s)',
                                (n, when_ts, author, field, old_value, new_value))
 
-                if comment:
-                    cursor.execute('INSERT INTO ticket_change (ticket, time, author, field, oldvalue, newvalue) VALUES (%s, %s, %s, %s, %s, %s)',
+                    if comment:
+                        cursor.execute('INSERT INTO ticket_change (ticket, time, author, field, oldvalue, newvalue) VALUES (%s, %s, %s, %s, %s, %s)',
                                (n, when_ts, author, 'comment', '', '(In #%s) %s'%(self.tkt.id, comment)))
 
-                # refresh the changetime to prevent concurrent edits
-                cursor.execute('UPDATE ticket SET changetime=%s WHERE id=%s', (when_ts, n))
+                    # refresh the changetime to prevent concurrent edits
+                    cursor.execute('UPDATE ticket SET changetime=%s WHERE id=%s', (when_ts, n))
 
 
     def __nonzero__(self):

@@ -6,16 +6,16 @@ from trac.core import *
 from trac.env import IEnvironmentSetupParticipant
 from trac.ticket.api import ITicketChangeListener, ITicketManipulator
 from trac.util.compat import set, sorted
-
-from model import TicketLinks
 from trac.ticket.model import Ticket
+
+from model import TicketLinks, extract_ticket_ids
 
 class TicketRelationsSystem(Component):
 
     implements(IEnvironmentSetupParticipant, ITicketChangeListener, ITicketManipulator)
     
     NUMBERS_RE = re.compile(r'\d+', re.U)
-    
+
     # IEnvironmentSetupParticipant methods
     def environment_created(self):
         self.upgrade_environment(None)
@@ -50,11 +50,12 @@ class TicketRelationsSystem(Component):
 
         links = TicketLinks(self.env, tkt, db)
 
-        old_relations = {}
+        old_relations = {'blocking': set([]), 'blockedby': set([])}
         if "blocking" in old_values:
-            old_relations['blocking'] = set(int(n) for n in self.NUMBERS_RE.findall(old_values['blocking']))
+            old_relations['blocking'] = extract_ticket_ids(old_values['blocking'])
+
         if "blockedby" in old_values:
-            old_relations['blockedby'] = set(int(n) for n in self.NUMBERS_RE.findall(old_values['blockedby']))
+            old_relations['blockedby'] = extract_ticket_ids(old_values['blockedby'])
 
         links.save(old_relations, author, comment, tkt.time_changed, db)
 
@@ -73,8 +74,8 @@ class TicketRelationsSystem(Component):
         
         id = unicode(ticket.id)
         links = TicketLinks(self.env, ticket, db)
-        links.blocking = set(int(n) for n in self.NUMBERS_RE.findall(ticket['blocking'] or ''))
-        links.blocked_by = set(int(n) for n in self.NUMBERS_RE.findall(ticket['blockedby'] or ''))
+        links.blocking = extract_ticket_ids(ticket['blocking'] or '')
+        links.blocked_by = extract_ticket_ids(ticket['blockedby'] or '')
         
         # Check that ticket does not have itself as a blocker 
         if id in links.blocking | links.blocked_by:

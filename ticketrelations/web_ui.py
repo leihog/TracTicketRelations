@@ -12,7 +12,7 @@ from trac.resource import ResourceNotFound
 from trac.util.text import shorten_line
 from trac.util.compat import set, sorted
 
-from model import TicketLinks
+from model import TicketLinks, extract_ticket_ids
 
 class TicketRelationsModule(Component):
     
@@ -29,9 +29,9 @@ class TicketRelationsModule(Component):
             # In case of an invalid ticket, the data is invalid
             if not data:
                 return template, data, content_type
+
             tkt = data['ticket']
-            links = TicketLinks(self.env, tkt)
-            
+            links = TicketLinks(self.env, tkt)            
             for i in links.blocked_by:
                 if Ticket(self.env, i)['status'] != 'closed':
                     add_script(req, 'ticketrelations/disable_resolve.js')
@@ -43,11 +43,11 @@ class TicketRelationsModule(Component):
                 for field, field_data in change['fields'].iteritems():
                     if field in self.fields:
                         if field_data['new'].strip():
-                            new = set([int(n) for n in field_data['new'].split(',')])
+                            new = extract_ticket_ids(field_data['new'])
                         else:
                             new = set()
                         if field_data['old'].strip():
-                            old = set([int(n) for n in field_data['old'].split(',')])
+                            old = extract_ticket_ids(field_data['old'])
                         else:
                             old = set()
                         add = new - old
