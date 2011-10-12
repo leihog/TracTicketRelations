@@ -19,3 +19,6 @@ To enable TicketRelations, add the following to trac.ini:
 
 TicketRelations is made for and tested on Trac 0.12. I have no idea if it works on older versions.
 The plugin is entirely safe to test and use as it will not interfere or alter existing data in any way.
+
+##Flattr this project
+[![Flattr this git repo](http://api.flattr.com/button/flattr-badge-large.png)](https://flattr.com/submit/auto?user_id=leihog&url=https://github.com/leihog/TracTicketRelations&title=TracTicketRelations&language=en_GB&tags=github&category=software) 
