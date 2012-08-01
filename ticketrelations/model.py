@@ -9,7 +9,7 @@ from trac.util.datefmt import utc, to_utimestamp
 
 def extract_ticket_ids(id_str):
     numbers_re = re.compile(r'\d+', re.U)
-    return set(int(n) for n in numbers_re.findall(id_str))
+    return set(int(n) for n in numbers_re.findall(id_str or ''))
 
 class TicketLinks(object):
     
